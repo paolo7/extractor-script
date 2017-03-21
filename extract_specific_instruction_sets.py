@@ -86,8 +86,6 @@ parse_html_into_text = False
 
 import os, io, ntpath, string, rdflib, codecs
 
-
-
 if parse_html_into_text:
   from bs4 import BeautifulSoup
 
@@ -157,6 +155,8 @@ if save_simplified:
 out.write(prefixes)
 
 def clean(text):
+    if text is None or len(text) == 0:
+        return u""
     if not parse_html_into_text:
         return text
     else:
