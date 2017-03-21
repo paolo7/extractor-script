@@ -247,8 +247,6 @@ def save(line, lang):
                        WHERE {
                           ?s owl:sameAs ?o .
                        }""")
-            if len(qres) < 1:
-                return False
             for row in qres:
                 if not found:
                     for pair in owl_sameAs_required_prefixes:
@@ -265,6 +263,8 @@ def save(line, lang):
                                   ?main rdf:type prohow:instruction_set .
                                   ?main rdfs:label ?l .
                                }""")
+            if len(qres) < 1:
+                return False
             title_l = qres.bindings[0]["l"]
             main_uri = qres.bindings[0]["main"]
             go.add((URIRef(main_uri), RDF.type, URIRef(u"http://w3id.org/prohow#instruction_set")))
