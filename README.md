@@ -10,6 +10,35 @@ A script to extract subsets and simplified versions from the PROHOW Multilingual
   - `rdflib`
   - [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/) (optional, required only for the `parse_html_into_text` feature)
 
+## Quick Start
+
+If you want to quickly get a simplified version of the dataset to work with, after following the installation, copy the following configuration variables:
+```
+perform_sparql_filtering = True
+remove_multiple_methods = True
+remove_multiple_requirements = True
+save_simplified = True
+parse_html_into_text = True
+```
+just before this line in file `extract_specific_instruction_sets.py`:
+```
+# CODE START
+``` 
+
+Then run the main script:
+
+```
+python extract_specific_instruction_sets.py
+```
+
+When the computation finishes, the file `extracted_simplified_graph.ttl` will contain all the instructions for the language files you have downloaded in a simplified format:
+ - Sets of instructions of type `prohow:instruction_set` containing
+   - A list of labelled steps (linked with the `prohow:has_step` relation.)
+   - A list of labeleld requirements (linked with the `prohow:requires` relation.)
+   - The order between the steps (linked with the `prohow:requires` relation.)
+   - The set of associated web-pages (linked with the `owl:sameAs` relation.)
+   - A language identified linked with the `prohow:language` relation
+
 ## Tutorial 1/3 - Basic Filters
 
 ### Overview of how to Configure and Run the Script
