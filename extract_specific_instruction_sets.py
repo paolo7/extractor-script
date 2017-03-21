@@ -415,6 +415,8 @@ def parse_file(file, lang):
     found = False
     found_num = 0
     for line in f:
+	if len(list_of_allowed_categories) == 0 and len(list_of_urls) == 0:
+            found = True
         if 'oa:hasTarget <' in line:
             for url in list_of_urls:
                 if "<"+str(url.lower())+">" in line.lower():
