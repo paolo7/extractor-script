@@ -6,23 +6,20 @@
 
 ## IN-CODE PARAMETERS
 
-
-
 # This parameter can be changed to only select instructions with specific language tags.
 # More specifically, the algorighm will only consider files having a name which starts with at least one 
+# DEFAULT:
 # list_of_allowed_languages = []
+list_of_allowed_languages = []
 # for example, for English and Spanish: 
-list_of_allowed_languages = ["en","es"]
+# list_of_allowed_languages = ["en","es"]
 
 # This parameter can be changed to only select instructions witin specific categories.
 # More specifically, the algorighm will select all the instructions which directly belong to one of the types
 # in list_of_allowed_categories, or one their sub-classes as defined in RDFS, in the Turtle file class_hierarchy.ttl
-list_of_allowed_categories = ["http://es.wikihow.com/Categor%C3%ADa:Desayunos","http://www.wikihow.com/Category:Breakfast" 
-                              ,"http://www.wikihow.com/Category:Recipes","http://es.wikihow.com/Categor%C3%ADa:Recetas" 
-                              ,"http://es.wikihow.com/Categor%C3%ADa:Recetas-para-dietas-especiales","http://www.wikihow.com/Category:Specialty-Diet-Recipes"
-                              ,"http://www.wikihow.com/Category:Food-Preparation","http://www.wikihow.com/Category:Food-Preparation"    
-                                                                                                                                        
-                               ]
+# DEFAULT:
+# list_of_allowed_categories = []
+list_of_allowed_categories = []
 # for example, the following configuration extracts only breakfast food instructions in Spanish and English
 # list_of_allowed_categories = ["http://www.wikihow.com/Category:Breakfast","http://es.wikihow.com/Categor%C3%ADa:Desayunos"]
 
@@ -30,32 +27,62 @@ list_of_allowed_categories = ["http://es.wikihow.com/Categor%C3%ADa:Desayunos","
 
 # This parameter allows advanced filtering of the sets of instructions to output
 # If this parameter is set to false, all the following parameters are considered set to false too
-perform_sparql_filtering = True
+# DEFAULT:
+# perform_sparql_filtering = False
+perform_sparql_filtering = False
 # If this parameter is set to true, sets of instructions containing multiple methods will be ignored
-remove_multiple_methods = True
+# DEFAULT:
+# remove_multiple_methods = False
+remove_multiple_methods = False
 # If this parameter is set to true, sets of instructions containing multiple sets of requirements will be ignored
-remove_multiple_requirements = True
+# DEFAULT:
+# remove_multiple_requirements = False
+remove_multiple_requirements = False
 
 # These parameters allow you to select instructions with a number of steps and requirements within a certain range
 # If this parameter larger than -1, sets of instructions with less than this number of steps will be ignored
-min_number_of_steps = 5
+# DEFAULT:
+# min_number_of_steps = -1
+min_number_of_steps = -1
 # If this parameter larger than -1, sets of instructions with more than this number of steps will be ignored
-max_number_of_steps = 20
+# DEFAULT:
+# max_number_of_steps = -1
+max_number_of_steps = -1
 # If this parameter larger than -1, sets of instructions with less than this number of requirements will be ignored
-min_number_of_requirements = 5
+# DEFAULT:
+# min_number_of_requirements = -1
+min_number_of_requirements = -1
 # If this parameter larger than -1, sets of instructions with more than this number of requirements will be ignored
-max_number_of_requirements = 20
+# DEFAULT:
+# max_number_of_requirements = -1
+max_number_of_requirements = -1
 
 # If this list contains at least one element, at least one pair of strings inside must occur in the subject and object
 # of an owl:sameAs relation. For example, by setting:
 # owl_sameAs_required_prefixes = [["http://es.wikihow.com/","http://www.wikihow.com/"]]
 # we select only instructions in English which have an equivalent Spanish page or vice-versa
-owl_sameAs_required_prefixes = [["http://es.wikihow.com/","http://www.wikihow.com/"]]
+# DEFAULT:
+# owl_sameAs_required_prefixes = []
+owl_sameAs_required_prefixes = []
 
-save_simplified = True
+# Turn true if you want a simplified output, with only one list of steps and one list of requirements per instructions set
+# DEFAULT:
+# save_simplified = False
+save_simplified = False
+
+# If the labels of some entities contain HTML, but you are interested only in their textual content, then turn this
+# variable to true and the HTML code will be stripped from the labels.
+# DEFAULT:
+# parse_html_into_text = False
+parse_html_into_text = False
+
+
 # CODE START
 
-import os, ntpath, string, rdflib
+import os, io, ntpath, string, rdflib, codecs
+
+if parse_html_into_text:
+  from bs4 import BeautifulSoup
 
 hierarchy = {}
 # load hieararchy if present
@@ -103,11 +130,7 @@ print "Specific URL extraction configured with: "+str(len(list_of_urls))+" URLs"
 
 out = open('extracted_graph.ttl','w')
 
-out_simple = None
-if save_simplified:
-    out_simple = open('extracted_simplified_graph.ttl','w')
-
-prefixes = "@prefix w: <http://w3id.org/prohowlinks#> .\n@prefix oa: <http://www.w3.org/ns/oa#> .\n@prefix prohow: <http://w3id.org/prohow#> .\n\
+prefixes = u"@prefix w: <http://w3id.org/prohowlinks#> .\n@prefix oa: <http://www.w3.org/ns/oa#> .\n@prefix prohow: <http://w3id.org/prohow#> .\n\
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n\
 @prefix owl: <http://www.w3.org/2002/07/owl#> .\n@prefix dbo: <http://dbpedia.org/ontology/> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
 
@@ -115,13 +138,46 @@ sparql_prefixes = "PREFIX prohow: <http://w3id.org/prohow#> \n PREFIX rdf: <http
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> \n PREFIX oa: <http://www.w3.org/ns/oa#> \n\
 PREFIX owl: <http://www.w3.org/2002/07/owl#> "
 
+out_simple = None
+if save_simplified:
+    out_simple = codecs.open('extracted_simplified_graph.ttl','w', encoding='utf-8')
+    out_simple.write(prefixes)
+    #out_simple_dep = open('extracted_simplified_graph_dependencies.ttl', 'w')
+    #out_simple_lab = open('extracted_simplified_graph_labels.ttl', 'w')
+
+
+
 out.write(prefixes)
 
+def clean(text):
+    if not parse_html_into_text:
+        return text
+    else:
+        soup = BeautifulSoup(text, "html.parser")
+        for div in soup.find_all("div", {'class': 'img-whvid'}):
+            div.decompose()
+        for div in soup.find_all("div", {'class': 'whvid_cont'}):
+            div.decompose()
+        for div in soup.find_all("div", {'class': 'whvid_cont_hideable'}):
+            div.decompose()
+        for div in soup.find_all("div", {'class': 'whvid_both'}):
+            div.decompose()
+        for div in soup.find_all("div", {'class': 'whvid_gif'}):
+            div.decompose()
+        for div in soup.find_all("script"):
+            div.decompose()
+        return " ".join(soup.text.strip().split())
 
-def save(line):
+
+def save_triple(s,p,o):
+    out_simple.write(s+u" "+p+u" "+o+u' .\n')
+def encodeLabel(label,lang):
+    return "\"\"\""+clean(label)+"\"\"\"@"+lang
+
+def save(line, lang):
     if perform_sparql_filtering:
         g = rdflib.Graph()
-        result = g.parse(data = prefixes+"\n"+line, format="turtle")
+        result = g.parse(data = prefixes+u"\n"+(line.decode('utf8')), format="turtle")
         if remove_multiple_methods:
             qres = g.query(
                 sparql_prefixes+"""SELECT DISTINCT ?m
@@ -206,6 +262,7 @@ def save(line):
             if not found:
                 #print("Not enough languages: " + str(len(qres)) + " " + line[0:300])
                 return False
+        # Save files in a simplified format for easier computation
         if save_simplified:
             # get title
             qres = g.query(
@@ -214,43 +271,128 @@ def save(line):
                                   ?main rdf:type prohow:instruction_set .
                                   ?main rdfs:label ?l .
                                }""")
-            title = qres.bindings[0]["l"]
-            title_uri = qres.bindings[0]["main"]
-            #print title
-            #print title_uri
+            title_l = qres.bindings[0]["l"]
+            main_uri = qres.bindings[0]["main"]
+            save_triple(("<"+str(main_uri)+">").decode('utf8'),u"rdf:type",u"prohow:instruction_set")
+            save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(title_l,lang))
             # get requirements
             qres = g.query(
                 sparql_prefixes + """SELECT DISTINCT ?s ?l
                                WHERE {
-                                  ?main rdf:type prohow:instruction_set .
-                                  ?main prohow:requires ?r .
+                                  <""" + str(main_uri) + """> prohow:requires ?r .
                                   ?r prohow:has_step ?s .
                                   ?s rdfs:label ?l .
                                }""")
             for row in qres:
-                label = row["l"]
-                uri = row["s"]
-                #print uri
-                #print label
+                r_label = row["l"]
+                r_uri = row["s"]
+                save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:requires", ("<" + str(r_uri) + ">").decode('utf8'))
+                save_triple(("<" + str(r_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(r_label,lang))
             # get ordered steps
             qres = g.query(
                 sparql_prefixes + """SELECT DISTINCT ?m2
                                WHERE {
-                                  ?main rdf:type prohow:instruction_set .
-                                  ?main prohow:has_method ?m .
+                                  <""" + str(main_uri) + """> prohow:has_method ?m .
                                   ?m prohow:has_step ?s .
                                   ?s prohow:has_method ?m2 .
                                }""")
             if len(qres) > 1:
-                print "there are multiple parts"
+                #print title_l
+                #print main_uri
+                qres = g.query(
+                    sparql_prefixes + """SELECT DISTINCT ?s ?l ?a
+                                       WHERE {
+                                          <""" + str(main_uri) + """> prohow:has_method ?m .
+                                          ?m prohow:has_step ?part .
+                                          ?part prohow:has_method ?m1 .
+                                          ?m1 prohow:has_step ?s .
+                                          ?s rdfs:label ?l
+                                          OPTIONAL {
+                                            ?s dbo:abstract ?a
+                                          }
+                                       }""")
+                for row in qres:
+                    s_label = row["l"]
+                    s_uri = row["s"]
+                    if "a" in row.labels:
+                        s_label = s_label +" "+ row["a"]
+                    save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:has_step", ("<" + str(s_uri) + ">").decode('utf8'))
+                    save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(s_label,lang))
+                qres = g.query(
+                    sparql_prefixes + """SELECT DISTINCT ?s ?s1
+                                       WHERE {
+                                         { <""" + str(main_uri) + """> prohow:has_method ?m .
+                                          ?m prohow:has_step ?part .
+                                          ?part prohow:has_method ?m1 .
+                                          ?m1 prohow:has_step ?s .
+                                          ?s prohow:requires ?s1 .
+                                         }
+                                         UNION
+                                         {
+                                          <""" + str(main_uri) + """> prohow:has_method ?m .
+                                          ?m prohow:has_step ?part2 .
+                                          ?part2 prohow:requires ?part1 .
+                                          ?part1 prohow:has_method ?m1 .
+                                          ?part2 prohow:has_method ?m2 .
+                                          ?m2 prohow:has_step ?s .
+                                          ?m1 prohow:has_step ?s1 .
+                                          FILTER NOT EXISTS {
+                                              ?s prohow:requires ?x .
+                                            }
+                                          FILTER NOT EXISTS {
+                                              ?x prohow:requires ?s1 .
+                                            }
+                                         }
+                                       }""")
+                for row in qres:
+                    s_uri = row["s"]
+                    s_uri1 = row["s1"]
+                    save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"prohow:requires", ("<" + str(s_uri1) + ">").decode('utf8'))
             else:
-                print "no parts"
+                qres = g.query(
+                    sparql_prefixes + """SELECT DISTINCT ?s ?l ?a
+                                           WHERE {
+                                              <""" + str(main_uri) + """> prohow:has_method ?m .
+                                              ?m prohow:has_step ?s .
+                                              ?s rdfs:label ?l
+                                              OPTIONAL {
+                                                ?s dbo:abstract ?a .
+                                              }
+                                           }""")
+                for row in qres:
+                    s_label = row["l"]
+                    s_uri = row["s"]
+                    if "a" in row.labels and not row["a"] is None:
+                        s_label = s_label + " " + row["a"]
+                    save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:has_step", ("<" + str(s_uri) + ">").decode('utf8'))
+                    save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(s_label,lang))
+                qres = g.query(
+                    sparql_prefixes + """SELECT DISTINCT ?s ?s1
+                                   WHERE {
+                                      <""" + str(main_uri) + """> prohow:has_method ?m .
+                                      ?m prohow:has_step ?s .
+                                      ?s prohow:requires ?s1
+                                   }""")
+                for row in qres:
+                    s_uri = row["s"]
+                    s_uri1 = row["s1"]
+                    save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"prohow:requires", ("<" + str(s_uri1) + ">").decode('utf8'))
+            qres = g.query(
+                sparql_prefixes + """SELECT DISTINCT ?o ?s
+                                                   WHERE {
+                                                      ?o owl:sameAs ?s
+                                                   }""")
+            for row in qres:
+                save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"owl:sameAs",
+                            ("<" + str(row["o"]) + ">").decode('utf8'))
+                save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"owl:sameAs",
+                            ("<" + str(row["s"]) + ">").decode('utf8'))
         print(" X graph has %s statements." % len(g))
     out.write(line+"\n\n")
 
     return True
 
-def parse_file(file):
+def parse_file(file, lang):
     print "Parsing file "+str(file)
     f = open(file,'r')
     full_instruction = ""	
@@ -273,7 +415,7 @@ def parse_file(file):
         if 'rdf:type prohow:instruction_set .' in line:
             # if the previous instruction set was selected, save it in output
             if found:
-                if save(full_instruction):
+                if save(full_instruction,lang):
                   found_num += 1
             # start collecting a new instructions set
             found = False
@@ -285,7 +427,7 @@ def parse_file(file):
                     line = string.replace(line, ")", "")
                 full_instruction = full_instruction+line
     if found:
-        if save(full_instruction):
+        if save(full_instruction, lang):
           found_num += 1
     f.close()
     print "Found in file: "+str(found_num)
@@ -303,10 +445,12 @@ for subdir, dirs, files in os.walk(rootdir):
                 for lang in list_of_allowed_languages:
                     if ntpath.basename(filepath).startswith(lang):
                         print filepath
-                        total_found += parse_file(filepath)
+                        total_found += parse_file(filepath, ntpath.basename(filepath)[0:1])
             else:
-                total_found += parse_file(filepath)
+                total_found += parse_file(filepath, ntpath.basename(filepath)[0:1])
 out.close()
 if save_simplified:
     out_simple.close()
+    #out_simple_dep.close()
+    #out_simple_lab.close()
 print 'In total, '+str(total_found)+' were found'
