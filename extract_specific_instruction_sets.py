@@ -70,6 +70,11 @@ owl_sameAs_required_prefixes = []
 # save_simplified = False
 save_simplified = False
 
+# Turn true if you want the label and the abstract of entities to be unified in a single literal
+# DEFAULT:
+# concatenate_label_abstract = False
+concatenate_label_abstract = False
+
 # If the labels of some entities contain HTML, but you are interested only in their textual content, then turn this
 # variable to true and the HTML code will be stripped from the labels.
 # DEFAULT:
@@ -80,6 +85,8 @@ parse_html_into_text = False
 # CODE START
 
 import os, io, ntpath, string, rdflib, codecs
+
+
 
 if parse_html_into_text:
   from bs4 import BeautifulSoup
@@ -275,6 +282,7 @@ def save(line, lang):
             main_uri = qres.bindings[0]["main"]
             save_triple(("<"+str(main_uri)+">").decode('utf8'),u"rdf:type",u"prohow:instruction_set")
             save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(title_l,lang))
+            save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:language", u"prohow:language_code_"+(lang.decode('utf8')))
             # get requirements
             qres = g.query(
                 sparql_prefixes + """SELECT DISTINCT ?s ?l
@@ -315,7 +323,11 @@ def save(line, lang):
                     s_label = row["l"]
                     s_uri = row["s"]
                     if "a" in row.labels:
-                        s_label = s_label +" "+ row["a"]
+                        if concatenate_label_abstract:
+                            s_label = s_label + " " + row["a"]
+                        else:
+                            save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"dbo:abstract",
+                                       encodeLabel(row["a"], lang))
                     save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:has_step", ("<" + str(s_uri) + ">").decode('utf8'))
                     save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(s_label,lang))
                 qres = g.query(
@@ -363,7 +375,11 @@ def save(line, lang):
                     s_label = row["l"]
                     s_uri = row["s"]
                     if "a" in row.labels and not row["a"] is None:
-                        s_label = s_label + " " + row["a"]
+                        if concatenate_label_abstract:
+                            s_label = s_label + " " + row["a"]
+                        else:
+                            save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"dbo:abstract",
+                                       encodeLabel(row["a"], lang))
                     save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:has_step", ("<" + str(s_uri) + ">").decode('utf8'))
                     save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(s_label,lang))
                 qres = g.query(
@@ -445,9 +461,9 @@ for subdir, dirs, files in os.walk(rootdir):
                 for lang in list_of_allowed_languages:
                     if ntpath.basename(filepath).startswith(lang):
                         print filepath
-                        total_found += parse_file(filepath, ntpath.basename(filepath)[0:1])
+                        total_found += parse_file(filepath, ntpath.basename(filepath)[0:2])
             else:
-                total_found += parse_file(filepath, ntpath.basename(filepath)[0:1])
+                total_found += parse_file(filepath, ntpath.basename(filepath)[0:2])
 out.close()
 if save_simplified:
     out_simple.close()
