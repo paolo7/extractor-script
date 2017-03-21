@@ -278,6 +278,8 @@ def save(line, lang):
                                   ?main rdf:type prohow:instruction_set .
                                   ?main rdfs:label ?l .
                                }""")
+            if len(qres) < 1:
+                return False
             title_l = qres.bindings[0]["l"]
             main_uri = qres.bindings[0]["main"]
             save_triple(("<"+str(main_uri)+">").decode('utf8'),u"rdf:type",u"prohow:instruction_set")
