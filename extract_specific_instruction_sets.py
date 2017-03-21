@@ -85,6 +85,8 @@ parse_html_into_text = False
 # CODE START
 
 import os, io, ntpath, string, rdflib, codecs
+from rdflib import RDF, RDFS, URIRef, Literal, XSD
+
 
 if parse_html_into_text:
   from bs4 import BeautifulSoup
@@ -145,8 +147,7 @@ PREFIX owl: <http://www.w3.org/2002/07/owl#> "
 
 out_simple = None
 if save_simplified:
-    out_simple = codecs.open('extracted_simplified_graph.ttl','w', encoding='utf-8')
-    out_simple.write(prefixes)
+    out_simple = open('extracted_simplified_graph.ttl','w')
     #out_simple_dep = open('extracted_simplified_graph_dependencies.ttl', 'w')
     #out_simple_lab = open('extracted_simplified_graph_labels.ttl', 'w')
 
@@ -155,8 +156,6 @@ if save_simplified:
 out.write(prefixes)
 
 def clean(text):
-    if text is None or len(text) == 0:
-        return u""
     if not parse_html_into_text:
         return text
     else:
@@ -177,13 +176,15 @@ def clean(text):
 
 
 def save_triple(s,p,o):
-    out_simple.write(s+u" "+p+u" "+o+u' .\n')
+    pass
+    #out_simple.write(s+u" "+p+u" "+o+u' .\n')
 def encodeLabel(label,lang):
     return "\"\"\""+clean(label)+"\"\"\"@"+lang
 
 def save(line, lang):
     if perform_sparql_filtering:
         g = rdflib.Graph()
+        go = rdflib.Graph()
         result = g.parse(data = prefixes+u"\n"+(line.decode('utf8')), format="turtle")
         if remove_multiple_methods:
             qres = g.query(
@@ -278,13 +279,16 @@ def save(line, lang):
                                   ?main rdf:type prohow:instruction_set .
                                   ?main rdfs:label ?l .
                                }""")
-            if len(qres) < 1:
-                return False
             title_l = qres.bindings[0]["l"]
             main_uri = qres.bindings[0]["main"]
-            save_triple(("<"+str(main_uri)+">").decode('utf8'),u"rdf:type",u"prohow:instruction_set")
-            save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(title_l,lang))
-            save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:language", u"prohow:language_code_"+(lang.decode('utf8')))
+            go.add((URIRef(main_uri), RDF.type, URIRef(u"http://w3id.org/prohow#instruction_set")))
+            go.add((URIRef(main_uri), RDFS.label,
+                    Literal(clean(title_l), lang = lang)))
+            go.add((URIRef(main_uri), URIRef(u"http://w3id.org/prohow#language"),
+                  URIRef(u"http://w3id.org/prohow#language_code_"+(lang.decode('utf8')))))
+            #save_triple(("<"+str(main_uri)+">").decode('utf8'),u"rdf:type",u"prohow:instruction_set")
+            #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(title_l,lang))
+            #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:language", u"prohow:language_code_"+(lang.decode('utf8')))
             # get requirements
             qres = g.query(
                 sparql_prefixes + """SELECT DISTINCT ?s ?l
@@ -296,8 +300,10 @@ def save(line, lang):
             for row in qres:
                 r_label = row["l"]
                 r_uri = row["s"]
-                save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:requires", ("<" + str(r_uri) + ">").decode('utf8'))
-                save_triple(("<" + str(r_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(r_label,lang))
+                go.add((URIRef(main_uri),URIRef(u"http://w3id.org/prohow#requires"),URIRef(r_uri)))
+                go.add((URIRef(r_uri), RDFS.label, Literal(clean(r_label), lang = lang)))
+                #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:requires", ("<" + str(r_uri) + ">").decode('utf8'))
+                #save_triple(("<" + str(r_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(r_label,lang))
             # get ordered steps
             qres = g.query(
                 sparql_prefixes + """SELECT DISTINCT ?m2
@@ -328,10 +334,14 @@ def save(line, lang):
                         if concatenate_label_abstract:
                             s_label = s_label + " " + row["a"]
                         else:
-                            save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"dbo:abstract",
-                                       encodeLabel(row["a"], lang))
-                    save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:has_step", ("<" + str(s_uri) + ">").decode('utf8'))
-                    save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(s_label,lang))
+                            go.add((URIRef(s_uri), URIRef(u"http://dbpedia.org/ontology/abstract"),
+                                    Literal(clean(row["a"]), lang=lang)))
+                            #save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"dbo:abstract",
+                            #           encodeLabel(row["a"], lang))
+                    go.add((URIRef(main_uri), URIRef(u"http://w3id.org/prohow#has_step"), URIRef(s_uri)))
+                    #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:has_step", ("<" + str(s_uri) + ">").decode('utf8'))
+                    go.add((URIRef(s_uri), RDFS.label, Literal(clean(s_label), lang=lang)))
+                    #save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(s_label,lang))
                 qres = g.query(
                     sparql_prefixes + """SELECT DISTINCT ?s ?s1
                                        WHERE {
@@ -361,7 +371,8 @@ def save(line, lang):
                 for row in qres:
                     s_uri = row["s"]
                     s_uri1 = row["s1"]
-                    save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"prohow:requires", ("<" + str(s_uri1) + ">").decode('utf8'))
+                    go.add((URIRef(s_uri), URIRef(u"http://w3id.org/prohow#requires"),URIRef(s_uri1)))
+                    #save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"prohow:requires", ("<" + str(s_uri1) + ">").decode('utf8'))
             else:
                 qres = g.query(
                     sparql_prefixes + """SELECT DISTINCT ?s ?l ?a
@@ -380,10 +391,14 @@ def save(line, lang):
                         if concatenate_label_abstract:
                             s_label = s_label + " " + row["a"]
                         else:
-                            save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"dbo:abstract",
-                                       encodeLabel(row["a"], lang))
-                    save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:has_step", ("<" + str(s_uri) + ">").decode('utf8'))
-                    save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(s_label,lang))
+                            go.add((URIRef(s_uri), URIRef(u"http://dbpedia.org/ontology/abstract"),
+                                    Literal(clean(row["a"]), lang=lang)))
+                            #save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"dbo:abstract",
+                            #           encodeLabel(row["a"], lang))
+                    go.add((URIRef(main_uri), URIRef(u"http://w3id.org/prohow#has_step"), URIRef(s_uri)))
+                    go.add((URIRef(s_uri), RDFS.label, Literal(clean(s_label), lang=lang)))
+                    #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:has_step", ("<" + str(s_uri) + ">").decode('utf8'))
+                    #save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(s_label,lang))
                 qres = g.query(
                     sparql_prefixes + """SELECT DISTINCT ?s ?s1
                                    WHERE {
@@ -394,18 +409,22 @@ def save(line, lang):
                 for row in qres:
                     s_uri = row["s"]
                     s_uri1 = row["s1"]
-                    save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"prohow:requires", ("<" + str(s_uri1) + ">").decode('utf8'))
+                    go.add((URIRef(s_uri), URIRef(u"http://w3id.org/prohow#requires"), URIRef(s_uri1)))
+                    #save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"prohow:requires", ("<" + str(s_uri1) + ">").decode('utf8'))
             qres = g.query(
                 sparql_prefixes + """SELECT DISTINCT ?o ?s
                                                    WHERE {
                                                       ?o owl:sameAs ?s
                                                    }""")
             for row in qres:
-                save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"owl:sameAs",
-                            ("<" + str(row["o"]) + ">").decode('utf8'))
-                save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"owl:sameAs",
-                            ("<" + str(row["s"]) + ">").decode('utf8'))
-        #print(" X graph has %s statements." % len(g))
+                go.add((URIRef(main_uri), URIRef(u"http://www.w3.org/2002/07/owl#sameAs"), URIRef(row["o"])))
+                go.add((URIRef(main_uri), URIRef(u"http://www.w3.org/2002/07/owl#sameAs"), URIRef(row["s"])))
+                #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"owl:sameAs",
+                #            ("<" + str(row["o"]) + ">").decode('utf8'))
+                #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"owl:sameAs",
+                #            ("<" + str(row["s"]) + ">").decode('utf8'))
+            out_simple.write(go.serialize(format='ttl', encoding='utf-8'))
+        print(" X graph has %s statements." % len(g))
     out.write(line+"\n\n")
 
     return True
@@ -417,7 +436,7 @@ def parse_file(file, lang):
     found = False
     found_num = 0
     for line in f:
-	if len(list_of_allowed_categories) == 0 and len(list_of_urls) == 0:
+        if len(list_of_allowed_categories) == 0 and len(list_of_urls) == 0:
             found = True
         if 'oa:hasTarget <' in line:
             for url in list_of_urls:
