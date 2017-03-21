@@ -39,6 +39,8 @@ When the computation finishes, the file `extracted_simplified_graph.ttl` will co
    - The set of associated web-pages (linked with the `owl:sameAs` relation.)
    - A language identified linked with the `prohow:language` relation
 
+NOTE: the generated file might become quite big if you run it on multiple languages at once, so you might want to run it on a few languages or language files at a time.
+
 ## Tutorial 1/3 - Basic Filters
 
 ### Overview of how to Configure and Run the Script
