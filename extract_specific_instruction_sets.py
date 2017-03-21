@@ -154,6 +154,8 @@ if save_simplified:
 out.write(prefixes)
 
 def clean(text):
+    if text is None:
+        return ""
     if not parse_html_into_text:
         return text
     else:
