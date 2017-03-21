@@ -8,8 +8,9 @@
 - Download the scripts from this repository and place them in the root directory where the Multilingual Dataset is stored.
 - Make sure that Python is installed, and the following libraries are available:
   - `rdflib`
+  - [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/) (optional, required only for the `parse_html_into_text` feature)
 
-## Tutorial 1/2 - Basic Filters
+## Tutorial 1/3 - Basic Filters
 
 ### Overview of how to Configure and Run the Script
 
@@ -50,7 +51,7 @@ The types/categories need to be added as URL strings in the list_of_allowed_lang
 list_of_allowed_categories = ["http://www.wikihow.com/Category:Breakfast","http://es.wikihow.com/Categor%C3%ADa:Desayunos"]
 ```
 
-## Tutorial 2/2 - SPARQL Filters
+## Tutorial 2/3 - SPARQL Filters
 
 The configuration parameters defined here allow you to have more control over the type of instructions that you want to extract. In order to use these features, the `perform_sparql_filtering` variable must be set to True:
 ```
@@ -61,10 +62,10 @@ perform_sparql_filtering = True
 
 Certain sets of instructions contain multiple methods or sets of requirements. This additional level of detail might be useful to some, but it might make computation more difficult. If you want to work with simpler sets of instructions, which can be represented as a single list of requirements and a single ordered list of steps, then follow these steps:
 
-If you don't want to have instructions that contain multiple methods, change the value of variable `perform_sparql_filtering` to true:
+If you don't want to have instructions that contain multiple methods, change the value of variable `remove_multiple_methods` to true:
 
 ```
-perform_sparql_filtering = True
+remove_multiple_methods = True
 ```
 
 If you don't want to have instructions that contain multiple sets of requirements, change the value of variable `remove_multiple_requirements` to true:
@@ -98,3 +99,27 @@ For example, if you want to select only English or Spanish sets of instructions 
 owl_sameAs_required_prefixes = [["http://es.wikihow.com/","http://www.wikihow.com/"]]
 ```
 
+## Tutorial 3/3 Simplified Data Output
+
+The multilingual dataset contains many features which make the representation richer, but can also be confusing to a first time user. If you are only interested in instructions represented with one single list of requirements, and one single list of steps, then follow these instructions to extract data in a simplified format.
+
+First of all, you need to enable the simplified output variable `save_simplified`:
+
+```
+save_simplified = True
+```
+
+It is advised that you start by setting these variables to true:
+
+```
+remove_multiple_methods = True
+remove_multiple_requirements = True
+```
+
+### Remove HTML Code from Labels
+
+If you want labels in plain text, without the related HTML code surrounding it, then set variable `parse_html_into_text` to true:
+
+```
+parse_html_into_text = True
+```
