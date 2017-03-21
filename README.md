@@ -56,3 +56,45 @@ The configuration parameters defined here allow you to have more control over th
 ```
 perform_sparql_filtering = True
 ```
+
+### Remove Instructions with Composite Requirements and Methods
+
+Certain sets of instructions contain multiple methods or sets of requirements. This additional level of detail might be useful to some, but it might make computation more difficult. If you want to work with simpler sets of instructions, which can be represented as a single list of requirements and a single ordered list of steps, then follow these steps:
+
+If you don't want to have instructions that contain multiple methods, change the value of variable `perform_sparql_filtering` to true:
+
+```
+perform_sparql_filtering = True
+```
+
+If you don't want to have instructions that contain multiple sets of requirements, change the value of variable `remove_multiple_requirements` to true:
+
+```
+remove_multiple_requirements = True
+```
+
+### Limit the Number of Steps and Requirements
+
+If the variable `min_number_of_steps` is greater than -1, instructions with less steps than this number are filtered out.
+If the variable `max_number_of_steps` is greater than -1, instructions with more steps than this number are filtered out.
+If the variable `min_number_of_requirements` is greater than -1, instructions with less requirements than this number are filtered out.
+If the variable `max_number_of_requirements` is greater than -1, instructions with more requirements than this number are filtered out.
+
+For example, if we want instructions with at least 3 but no more than 7 steps, and with at least 5 requirements, we can configure those variables as follows:
+```
+min_number_of_steps = 3
+max_number_of_steps = 7
+min_number_of_requirements = 5
+max_number_of_requirements = -1
+```
+
+### Limit to Multilingual Instructions
+
+If you are only interested in instructions that have an equivalent version in a specific language, you can configure the `owl_sameAs_required_prefixes` variable. If you want to use this feature, this variable should be a list containing pairs of URL prefixes that are associated with each pair of languages you are interested in.
+
+For example, if you want to select only English or Spanish sets of instructions which have an English or Spanish equivalent version, then you can configure this parameter as follows:
+
+```
+owl_sameAs_required_prefixes = [["http://es.wikihow.com/","http://www.wikihow.com/"]]
+```
+
