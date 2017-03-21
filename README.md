@@ -1,6 +1,6 @@
 # PROHOW Extractor
-### Script to Extract Subsets and Simplified Versions from the PROHOW Multilingual Dataset
 
+A script to extract subsets and simplified versions from the PROHOW Multilingual Dataset.
 
 ## Installation
 
@@ -122,4 +122,12 @@ If you want labels in plain text, without the related HTML code surrounding it, 
 
 ```
 parse_html_into_text = True
+```
+
+### Unify Abstract and Label
+
+Entities typically have a shorter description under property `rdfs:label` and a longer one under `dbo:abstract`. If you want to concatenate both scripts into a single label property, turn variable `concatenate_label_abstract` to true:
+
+```
+concatenate_label_abstract = True
 ```
