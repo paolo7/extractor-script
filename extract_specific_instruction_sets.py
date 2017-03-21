@@ -146,12 +146,10 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> \n PREFIX oa: <http://www.w
 PREFIX owl: <http://www.w3.org/2002/07/owl#> "
 
 out_simple = None
+gor = None
 if save_simplified:
+    gor = rdflib.Graph()
     out_simple = open('extracted_simplified_graph.ttl','w')
-    #out_simple_dep = open('extracted_simplified_graph_dependencies.ttl', 'w')
-    #out_simple_lab = open('extracted_simplified_graph_labels.ttl', 'w')
-
-
 
 out.write(prefixes)
 
@@ -174,10 +172,6 @@ def clean(text):
             div.decompose()
         return " ".join(soup.text.strip().split())
 
-
-def save_triple(s,p,o):
-    pass
-    #out_simple.write(s+u" "+p+u" "+o+u' .\n')
 def encodeLabel(label,lang):
     return "\"\"\""+clean(label)+"\"\"\"@"+lang
 
@@ -194,7 +188,6 @@ def save(line, lang):
                       ?main prohow:has_method ?m .
                    }""")
             if len(qres) > 1:
-                #print("Too many methods: "+str(len(qres)))
                 return False
         if min_number_of_steps > -1 or max_number_of_steps > -1:
             qres = g.query(
@@ -211,10 +204,8 @@ def save(line, lang):
                                   ?pm prohow:has_step ?p .}
                                }""")
             if min_number_of_steps > -1 and len(qres) < min_number_of_steps:
-                #print("Too few steps: "+str(len(qres))+" "+line[0:300])
                 return False
             if max_number_of_steps > -1 and len(qres) > max_number_of_steps:
-                #print("Too many steps: "+str(len(qres))+" "+line[0:300])
                 return False
         if remove_multiple_requirements:
             qres = g.query(
@@ -226,7 +217,6 @@ def save(line, lang):
                       ?s rdf:type prohow:consumable .
                    }""")
             if len(qres) > 2:
-                #print("Too many requirements: "+str(len(qres))+" "+line[0:300])
                 return False
             qres = g.query(
                 sparql_prefixes + """SELECT DISTINCT ?r
@@ -237,7 +227,6 @@ def save(line, lang):
                                  ?s rdf:type prohow:requirement .
                               }""")
             if len(qres) > 2:
-                #print("Too many requirements: " + str(len(qres)) + " " + line[0:300])
                 return False
         if min_number_of_requirements > -1 or max_number_of_requirements > -1:
             qres = g.query(
@@ -248,10 +237,8 @@ def save(line, lang):
                       ?r prohow:has_step ?s .
                    }""")
             if min_number_of_requirements > -1 and len(qres) < min_number_of_requirements:
-                #print("Too few requirements: "+str(len(qres))+" "+line[0:300])
                 return False
             if max_number_of_requirements > -1 and len(qres) > max_number_of_requirements:
-                #print("Too many requirements: "+str(len(qres))+" "+line[0:300])
                 return False
         if len(owl_sameAs_required_prefixes) > 0:
             found = False
@@ -268,7 +255,6 @@ def save(line, lang):
                         if (pair[0] in row["s"] and pair[1] in row["o"]) or (pair[1] in row["s"] and pair[0] in row["o"]):
                             found = True
             if not found:
-                #print("Not enough languages: " + str(len(qres)) + " " + line[0:300])
                 return False
         # Save files in a simplified format for easier computation
         if save_simplified:
@@ -286,9 +272,11 @@ def save(line, lang):
                     Literal(clean(title_l), lang = lang)))
             go.add((URIRef(main_uri), URIRef(u"http://w3id.org/prohow#language"),
                   URIRef(u"http://w3id.org/prohow#language_code_"+(lang.decode('utf8')))))
-            #save_triple(("<"+str(main_uri)+">").decode('utf8'),u"rdf:type",u"prohow:instruction_set")
-            #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(title_l,lang))
-            #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:language", u"prohow:language_code_"+(lang.decode('utf8')))
+            gor.add((URIRef(main_uri), RDF.type, URIRef(u"http://w3id.org/prohow#instruction_set")))
+            gor.add((URIRef(main_uri), RDFS.label,
+                    Literal(clean(title_l), lang=lang)))
+            gor.add((URIRef(main_uri), URIRef(u"http://w3id.org/prohow#language"),
+                    URIRef(u"http://w3id.org/prohow#language_code_" + (lang.decode('utf8')))))
             # get requirements
             qres = g.query(
                 sparql_prefixes + """SELECT DISTINCT ?s ?l
@@ -302,8 +290,8 @@ def save(line, lang):
                 r_uri = row["s"]
                 go.add((URIRef(main_uri),URIRef(u"http://w3id.org/prohow#requires"),URIRef(r_uri)))
                 go.add((URIRef(r_uri), RDFS.label, Literal(clean(r_label), lang = lang)))
-                #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:requires", ("<" + str(r_uri) + ">").decode('utf8'))
-                #save_triple(("<" + str(r_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(r_label,lang))
+                gor.add((URIRef(main_uri), URIRef(u"http://w3id.org/prohow#requires"), URIRef(r_uri)))
+                gor.add((URIRef(r_uri), RDFS.label, Literal(clean(r_label), lang=lang)))
             # get ordered steps
             qres = g.query(
                 sparql_prefixes + """SELECT DISTINCT ?m2
@@ -313,8 +301,6 @@ def save(line, lang):
                                   ?s prohow:has_method ?m2 .
                                }""")
             if len(qres) > 1:
-                #print title_l
-                #print main_uri
                 qres = g.query(
                     sparql_prefixes + """SELECT DISTINCT ?s ?l ?a
                                        WHERE {
@@ -336,12 +322,12 @@ def save(line, lang):
                         else:
                             go.add((URIRef(s_uri), URIRef(u"http://dbpedia.org/ontology/abstract"),
                                     Literal(clean(row["a"]), lang=lang)))
-                            #save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"dbo:abstract",
-                            #           encodeLabel(row["a"], lang))
+                            gor.add((URIRef(s_uri), URIRef(u"http://dbpedia.org/ontology/abstract"),
+                                    Literal(clean(row["a"]), lang=lang)))
                     go.add((URIRef(main_uri), URIRef(u"http://w3id.org/prohow#has_step"), URIRef(s_uri)))
-                    #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:has_step", ("<" + str(s_uri) + ">").decode('utf8'))
                     go.add((URIRef(s_uri), RDFS.label, Literal(clean(s_label), lang=lang)))
-                    #save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(s_label,lang))
+                    gor.add((URIRef(main_uri), URIRef(u"http://w3id.org/prohow#has_step"), URIRef(s_uri)))
+                    gor.add((URIRef(s_uri), RDFS.label, Literal(clean(s_label), lang=lang)))
                 qres = g.query(
                     sparql_prefixes + """SELECT DISTINCT ?s ?s1
                                        WHERE {
@@ -372,7 +358,7 @@ def save(line, lang):
                     s_uri = row["s"]
                     s_uri1 = row["s1"]
                     go.add((URIRef(s_uri), URIRef(u"http://w3id.org/prohow#requires"),URIRef(s_uri1)))
-                    #save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"prohow:requires", ("<" + str(s_uri1) + ">").decode('utf8'))
+                    gor.add((URIRef(s_uri), URIRef(u"http://w3id.org/prohow#requires"), URIRef(s_uri1)))
             else:
                 qres = g.query(
                     sparql_prefixes + """SELECT DISTINCT ?s ?l ?a
@@ -393,12 +379,12 @@ def save(line, lang):
                         else:
                             go.add((URIRef(s_uri), URIRef(u"http://dbpedia.org/ontology/abstract"),
                                     Literal(clean(row["a"]), lang=lang)))
-                            #save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"dbo:abstract",
-                            #           encodeLabel(row["a"], lang))
+                            gor.add((URIRef(s_uri), URIRef(u"http://dbpedia.org/ontology/abstract"),
+                                    Literal(clean(row["a"]), lang=lang)))
                     go.add((URIRef(main_uri), URIRef(u"http://w3id.org/prohow#has_step"), URIRef(s_uri)))
                     go.add((URIRef(s_uri), RDFS.label, Literal(clean(s_label), lang=lang)))
-                    #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"prohow:has_step", ("<" + str(s_uri) + ">").decode('utf8'))
-                    #save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"rdfs:label", encodeLabel(s_label,lang))
+                    gor.add((URIRef(main_uri), URIRef(u"http://w3id.org/prohow#has_step"), URIRef(s_uri)))
+                    gor.add((URIRef(s_uri), RDFS.label, Literal(clean(s_label), lang=lang)))
                 qres = g.query(
                     sparql_prefixes + """SELECT DISTINCT ?s ?s1
                                    WHERE {
@@ -410,7 +396,7 @@ def save(line, lang):
                     s_uri = row["s"]
                     s_uri1 = row["s1"]
                     go.add((URIRef(s_uri), URIRef(u"http://w3id.org/prohow#requires"), URIRef(s_uri1)))
-                    #save_triple(("<" + str(s_uri) + ">").decode('utf8'), u"prohow:requires", ("<" + str(s_uri1) + ">").decode('utf8'))
+                    gor.add((URIRef(s_uri), URIRef(u"http://w3id.org/prohow#requires"), URIRef(s_uri1)))
             qres = g.query(
                 sparql_prefixes + """SELECT DISTINCT ?o ?s
                                                    WHERE {
@@ -419,12 +405,10 @@ def save(line, lang):
             for row in qres:
                 go.add((URIRef(main_uri), URIRef(u"http://www.w3.org/2002/07/owl#sameAs"), URIRef(row["o"])))
                 go.add((URIRef(main_uri), URIRef(u"http://www.w3.org/2002/07/owl#sameAs"), URIRef(row["s"])))
-                #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"owl:sameAs",
-                #            ("<" + str(row["o"]) + ">").decode('utf8'))
-                #save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"owl:sameAs",
-                #            ("<" + str(row["s"]) + ">").decode('utf8'))
+                gor.add((URIRef(main_uri), URIRef(u"http://www.w3.org/2002/07/owl#sameAs"), URIRef(row["o"])))
+                gor.add((URIRef(main_uri), URIRef(u"http://www.w3.org/2002/07/owl#sameAs"), URIRef(row["s"])))
             out_simple.write(go.serialize(format='ttl', encoding='utf-8'))
-        print(" X graph has %s statements." % len(g))
+        #print(" X graph has %s statements." % len(g))
     out.write(line+"\n\n")
 
     return True
@@ -448,9 +432,6 @@ def parse_file(file, lang):
             for allowed_concept in list_of_allowed_categories:
                 if is_subclass_of(type,allowed_concept):
                     found = True
-        #if 'http://www.wikihow.com/Category:Cocktails' in line or ('http://es.wikihow.com/Categor%C3%ADa:Bebidas-alcoh%C3%B3licas' in line)\
-        #        or ('http://es.wikihow.com/Categor%C3%ADa:Pizza' in line) or ('http://www.wikihow.com/Category:Pizza' in line):
-        #    found = True
         if 'rdf:type prohow:instruction_set .' in line:
             # if the previous instruction set was selected, save it in output
             if found:
@@ -477,7 +458,6 @@ rootdir = os.getcwd()
 total_found = 0
 for subdir, dirs, files in os.walk(rootdir):
     for file in files:
-        #print os.path.join(subdir, file)
         filepath = subdir + os.sep + file
         if filepath.endswith(".ttl"):
             if len(list_of_allowed_languages) > 0:
@@ -490,6 +470,7 @@ for subdir, dirs, files in os.walk(rootdir):
 out.close()
 if save_simplified:
     out_simple.close()
-    #out_simple_dep.close()
-    #out_simple_lab.close()
+    out_simple_single = open("extracted_simplified_graph.rdf", "w")
+    out_simple_single.write(gor.serialize(format='pretty-xml', encoding='utf-8'))
+    out_simple_single.close()
 print 'In total, '+str(total_found)+' were found'
