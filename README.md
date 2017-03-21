@@ -39,6 +39,8 @@ When the computation finishes, the file `extracted_simplified_graph.ttl` will co
    - The set of associated web-pages (linked with the `owl:sameAs` relation.)
    - A language identified linked with the `prohow:language` relation
 
+To better understand this model, a sample graphical visualisation (in SVG) of a simplified set of instructions is available [here](https://github.com/paolo7/extractor-script/blob/master/ExampleDataModel.svg).
+
 NOTE: the generated file might become quite big if you run it on multiple languages at once, so you might want to run it on a few languages or language files at a time.
 
 ## Tutorial 1/3 - Basic Filters
