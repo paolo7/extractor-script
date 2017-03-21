@@ -405,7 +405,7 @@ def save(line, lang):
                             ("<" + str(row["o"]) + ">").decode('utf8'))
                 save_triple(("<" + str(main_uri) + ">").decode('utf8'), u"owl:sameAs",
                             ("<" + str(row["s"]) + ">").decode('utf8'))
-        print(" X graph has %s statements." % len(g))
+        #print(" X graph has %s statements." % len(g))
     out.write(line+"\n\n")
 
     return True
