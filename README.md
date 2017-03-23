@@ -164,3 +164,11 @@ Entities typically have a shorter description under property `rdfs:label` and a 
 ```
 concatenate_label_abstract = True
 ```
+
+### Add Consumable/Non-Consumable Requirements Distinction
+
+Set the value of the variable `get_requirement_types` to true if you want to keep the distinction between consumable (`prohow:consumable`) and non-consumable (`prohow:requirement`) requirements in the simplified representation:
+
+```
+get_requirement_types = True
+```
