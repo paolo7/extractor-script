@@ -81,6 +81,12 @@ concatenate_label_abstract = False
 # parse_html_into_text = False
 parse_html_into_text = False
 
+# Set this value to true if you want the simplified representation to contain information on whether a requirement is
+# to be considered a tool (prohow:requirement) or as a consumable ingredient (prohow:requirement)
+# DEFAULT:
+# get_requirement_types = False
+get_requirement_types = False
+
 
 # CODE START
 
@@ -280,20 +286,34 @@ def save(line, lang):
             gor.add((URIRef(main_uri), URIRef(u"http://w3id.org/prohow#language"),
                     URIRef(u"http://w3id.org/prohow#language_code_" + (lang.decode('utf8')))))
             # get requirements
-            qres = g.query(
-                sparql_prefixes + """SELECT DISTINCT ?s ?l
-                               WHERE {
-                                  <""" + str(main_uri) + """> prohow:requires ?r .
-                                  ?r prohow:has_step ?s .
-                                  ?s rdfs:label ?l .
-                               }""")
+            if get_requirement_types:
+                qres = g.query(
+                    sparql_prefixes + """SELECT DISTINCT ?s ?l ?type
+                                   WHERE {
+                                      <""" + str(main_uri) + """> prohow:requires ?r .
+                                      ?r prohow:has_step ?s .
+                                      ?s rdfs:label ?l .
+                                      ?s rdf:type ?type .
+                                   }""")
+            else:
+                qres = g.query(
+                    sparql_prefixes + """SELECT DISTINCT ?s ?l
+                                   WHERE {
+                                      <""" + str(main_uri) + """> prohow:requires ?r .
+                                      ?r prohow:has_step ?s .
+                                      ?s rdfs:label ?l .
+                                   }""")
             for row in qres:
                 r_label = row["l"]
                 r_uri = row["s"]
+                if get_requirement_types:
+                    type = row["type"]
+                    go.add((URIRef(r_uri), RDF.type, URIRef(type)))
+                    gor.add((URIRef(r_uri), RDF.type, URIRef(type)))
                 go.add((URIRef(main_uri),URIRef(u"http://w3id.org/prohow#requires"),URIRef(r_uri)))
-                go.add((URIRef(r_uri), RDFS.label, Literal(clean(r_label), lang = lang)))
+                go.add((URIRef(r_uri), RDFS.label, Literal(clean(r_label), lang = lang)))               
                 gor.add((URIRef(main_uri), URIRef(u"http://w3id.org/prohow#requires"), URIRef(r_uri)))
-                gor.add((URIRef(r_uri), RDFS.label, Literal(clean(r_label), lang=lang)))
+                gor.add((URIRef(r_uri), RDFS.label, Literal(clean(r_label), lang=lang)))               
             # get ordered steps
             qres = g.query(
                 sparql_prefixes + """SELECT DISTINCT ?m2
